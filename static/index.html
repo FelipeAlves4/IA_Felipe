@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuroLink - Assistente de IA para Programação</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        pre {
+            background-color: #1e1e1e;
+            color: #f8f8f2;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e3a8a, #6b21a8);
+        }
+        .slide-in {
+            animation: slideIn 0.3s ease-in-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6b21a8;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        .sidebar-hidden {
+            transform: translateX(-100%);
+        }
+        .tab-active {
+            border-bottom: 2px solid #6b21a8;
+            color: #6b21a8;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex">
+    <!-- Barra Lateral para Histórico -->
+    <div id="sidebar" class="w-1/4 bg-gray-800 p-4 fixed inset-y-0 left-0 sidebar md:static md:translate-x-0 sidebar-hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-purple-300">Histórico</h2>
+            <button onclick="toggleSidebar()" class="md:hidden text-purple-300">✕</button>
+        </div>
+        <div id="historico" class="space-y-2 overflow-y-auto max-h-[80vh]"></div>
+    </div>
+
+    <!-- Botão de Toggle para Sidebar em Mobile -->
+    <button onclick="toggleSidebar()" class="md:hidden fixed top-4 left-4 text-purple-300 text-2xl">☰</button>
+
+    <!-- Conteúdo Principal -->
+    <div class="flex-1 p-6">
+        <!-- Cabeçalho -->
+        <div class="text-center mb-6">
+            <svg class="w-16 h-16 mx-auto mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke="url(#grad)" d="M12 2a10 10 0 0 0-10 10c0 5.52 4.48 10 10 10s10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z"/>
+                <defs>
+                    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#1e3a8a;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#6b21a8;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+            </svg>
+            <h1 class="text-4xl font-bold text-white font-roboto">NeuroLink</h1>
+            <p class="text-purple-200 mt-2 font-roboto">Seu assistente de IA para programação e desenvolvimento!</p>
+        </div>
+
+        <!-- Sugestões de Perguntas -->
+        <div class="flex flex-wrap gap-2 mb-4 justify-center">
+            <button onclick="setPergunta('Como implementar um padrão Observer em JavaScript?')" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition font-roboto">Padrão Observer</button>
+            <button onclick="setPergunta('Explique o conceito de closures em JavaScript')" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition font-roboto">Closures</button>
+            <button onclick="setPergunta('Como fazer uma requisição HTTP em Python usando requests?')" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition font-roboto">HTTP Requests</button>
+            <button onclick="setPergunta('O que é e como usar Docker?')" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition font-roboto">Docker</button>
+        </div>
+
+        <!-- Seletor de Linguagem -->
+        <div class="mb-4 flex justify-center">
+            <select id="linguagem" class="bg-gray-800 text-white border border-gray-600 p-2 rounded-md">
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="java">Java</option>
+                <option value="csharp">C#</option>
+                <option value="php">PHP</option>
+                <option value="ruby">Ruby</option>
+                <option value="go">Go</option>
+                <option value="rust">Rust</option>
+                <option value="typescript">TypeScript</option>
+            </select>
+        </div>
+
+        <!-- Upload de Imagem -->
+        <div class="mb-4 flex justify-center">
+            <label class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition font-roboto cursor-pointer">
+                Enviar Código/Diagrama
+                <input type="file" id="imagem" accept="image/*" class="hidden" onchange="processarImagem(event)">
+            </label>
+        </div>
+
+        <!-- Entrada de Pergunta -->
+        <div class="flex mb-6">
+            <textarea id="pergunta" placeholder="Digite sua pergunta sobre programação aqui..." 
+                   class="flex-grow p-3 bg-gray-800 border border-gray-700 rounded-l-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-white font-roboto min-h-[100px]"></textarea>
+            <div class="flex flex-col gap-2">
+                <button onclick="enviarPergunta()" class="bg-purple-600 text-white p-3 rounded-r-md hover:bg-purple-700 transition font-roboto">Enviar</button>
+                <button onclick="limparResposta()" class="bg-gray-600 text-white p-3 rounded-r-md hover:bg-gray-700 transition font-roboto">Limpar</button>
+            </div>
+        </div>
+
+        <!-- Área de Resposta -->
+        <div class="bg-gray-800 p-4 rounded-md shadow-lg min-h-[200px] slide-in">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-700 mb-4">
+                <button onclick="mudarTab('links')" class="px-4 py-2 tab-active" id="tab-links">Recursos e Links</button>
+                <button onclick="mudarTab('aula')" class="px-4 py-2" id="tab-aula">Aula Completa</button>
+            </div>
+            
+            <!-- Conteúdo das Tabs -->
+            <div id="conteudo-links" class="tab-content"></div>
+            <div id="conteudo-aula" class="tab-content hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        let historico = [];
+        let sidebarVisible = false;
+
+        // Configurar marked para usar highlight.js
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            }
+        });
+
+        async function enviarPergunta() {
+            const pergunta = document.getElementById('pergunta').value;
+            const linguagem = document.getElementById('linguagem').value;
+            if (!pergunta) return;
+
+            mostrarLoading();
+
+            try {
+                const response = await fetch('http://localhost:8000/perguntar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ texto: pergunta, linguagem })
+                });
+                const data = await response.json();
+                if (data.links && data.aula) {
+                    document.getElementById('conteudo-links').innerHTML = marked.parse(data.links);
+                    document.getElementById('conteudo-aula').innerHTML = marked.parse(data.aula);
+                    adicionarAoHistorico(pergunta, data);
+                } else {
+                    mostrarErro('Resposta inválida. Tente novamente.');
+                }
+                document.getElementById('pergunta').value = '';
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        async function processarImagem(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            mostrarLoading();
+
+            const formData = new FormData();
+            formData.append('imagem', file);
+
+            try {
+                const response = await fetch('http://localhost:8000/processar-imagem', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.links && data.aula) {
+                    document.getElementById('conteudo-links').innerHTML = marked.parse(data.links);
+                    document.getElementById('conteudo-aula').innerHTML = marked.parse(data.aula);
+                    adicionarAoHistorico('Imagem de código enviada', data);
+                } else {
+                    mostrarErro('Resposta inválida. Tente novamente.');
+                }
+            } catch (error) {
+                mostrarErro(error.message);
+            }
+        }
+
+        function setPergunta(texto) {
+            document.getElementById('pergunta').value = texto;
+            enviarPergunta();
+        }
+
+        function limparResposta() {
+            document.getElementById('conteudo-links').innerHTML = '';
+            document.getElementById('conteudo-aula').innerHTML = '';
+        }
+
+        function mostrarLoading() {
+            document.getElementById('conteudo-links').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('conteudo-aula').innerHTML = '<div class="spinner"></div>';
+        }
+
+        function mostrarErro(mensagem) {
+            document.getElementById('conteudo-links').innerHTML = `<p class="text-red-400">Erro: ${mensagem}</p>`;
+            document.getElementById('conteudo-aula').innerHTML = `<p class="text-red-400">Erro: ${mensagem}</p>`;
+        }
+
+        function adicionarAoHistorico(pergunta, resposta) {
+            if (!resposta) return;
+            historico.push({ pergunta, resposta });
+            const historicoDiv = document.getElementById('historico');
+            historicoDiv.innerHTML = historico.map((item, index) => `
+                <div class="p-2 bg-gray-700 rounded-md cursor-pointer hover:bg-gray-600" onclick="mostrarResposta(${index})">
+                    ${item.pergunta.substring(0, 30)}${item.pergunta.length > 30 ? '...' : ''}
+                </div>
+            `).join('');
+            historicoDiv.scrollTop = historicoDiv.scrollHeight;
+        }
+
+        function mostrarResposta(index) {
+            const resposta = historico[index].resposta;
+            document.getElementById('conteudo-links').innerHTML = marked.parse(resposta.links);
+            document.getElementById('conteudo-aula').innerHTML = marked.parse(resposta.aula);
+        }
+
+        function mudarTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+            document.querySelectorAll('button').forEach(btn => btn.classList.remove('tab-active'));
+            
+            document.getElementById(`conteudo-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebarVisible = !sidebarVisible;
+            sidebar.classList.toggle('sidebar-hidden', !sidebarVisible);
+        }
+
+        document.getElementById('pergunta').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') enviarPergunta();
+        });
+    </script>
+</body>
+</html>
